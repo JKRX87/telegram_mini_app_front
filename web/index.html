@@ -1,1 +1,57 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+    />
 
+    <title>Telegram Mini App</title>
+    <base href="/" />
+    <link rel="icon" type="image/png" href="icons/Icon-192.png" />
+
+    <style>
+      html, body {
+        height: 100%;
+        margin: 0;
+        background: #ffffff;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      (function () {
+        const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+        window.__TG_WEBAPP__ = tg ? {
+          version: tg.version || null,
+          initData: tg.initData || "",
+          initDataUnsafe: tg.initDataUnsafe || null,
+          themeParams: tg.themeParams || {},
+          colorScheme: tg.colorScheme || "light",
+          platform: tg.platform || "unknown",
+          ready: function () { try { tg.ready(); } catch (e) {} },
+          expand: function () { try { tg.expand(); } catch (e) {} },
+          close: function () { try { tg.close(); } catch (e) {} },
+          MainButton: tg.MainButton || null,
+          sendData: function (data) { try { tg.sendData(data); } catch (e) {} },
+          openLink: function (url) { try { tg.openLink(url); } catch (e) {} },
+          isAvailable: true
+        } : { isAvailable: false };
+      })();
+    </script>
+
+    <script src="flutter.js" defer></script>
+    <script>
+      window.addEventListener('load', function () {
+        _flutter.loader.loadEntrypoint({
+          onEntrypointLoaded: function (engineInitializer) {
+            engineInitializer.initializeEngine().then(function (appRunner) {
+              appRunner.runApp();
+            });
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
