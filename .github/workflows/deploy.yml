@@ -16,7 +16,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0' # актуальная стабильная версия
+          flutter-version: '3.24.0' # актуальная стабильная версия Flutter
 
       - name: Install dependencies
         run: flutter pub get
@@ -24,17 +24,15 @@ jobs:
       - name: Build Flutter Web
         run: flutter build web --release
 
-      - name: Deploy to Vercel
-        run: |
-          npm install -g vercel
-          vercel deploy --prod --yes \
-            --token=$VERCEL_TOKEN \
-            --org-id=$VERCEL_ORG_ID \
-            --project-id=$VERCEL_PROJECT_ID \
-            --scope=$VERCEL_ORG_ID \
-            --confirm \
-            --cwd build/web
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Pull Vercel Project Settings
+        run: vercel pull --yes --environment=production --token=$VERCEL_TOKEN
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy to Vercel
+        run: vercel deploy --prod --yes --token=$VERCEL_TOKEN --confirm --cwd build/web
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
