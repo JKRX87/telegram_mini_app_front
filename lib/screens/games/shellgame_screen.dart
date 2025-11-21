@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import '../../widgets/game_background.dart';
 
 class ShellGameScreen extends StatefulWidget {
-  const ShellGameScreen({super.key});
+  final VoidCallback onWin;
+  const ShellGameScreen({super.key, required this.onWin});
 
   @override
   State<ShellGameScreen> createState() => _ShellGameScreenState();
@@ -65,7 +66,8 @@ class _ShellGameScreenState extends State<ShellGameScreen> {
   void _choose(int i) {
     setState(() => finished = true);
     if (i == ballPos) {
-      _snack('Верно! Ты получаешь очки');
+      widget.onWin(); // начисляем 50 очков
+      _snack('Верно! Ты получаешь 50 очков');
     } else {
       _snack('Мимо! Попробуй снова');
     }
