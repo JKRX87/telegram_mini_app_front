@@ -210,13 +210,11 @@ class SectionBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Общий фон для разделов
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+      decoration: BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('assets/images/background.png'),
+          fit: BoxFit.cover,
         ),
       ),
       child: child,
