@@ -23,6 +23,6 @@ flutter:
 
   assets:
     - assets/images/main_bg.jpeg
-    - assets/images/blackjack.jpeg
-    - assets/images/tictactoe.jpeg
-    - assets/images/shell.jpeg
+    - assets/images/bg_blackjack.jpeg
+    - assets/images/bg_tictactoe.jpeg
+    - assets/images/bg_shell.jpeg
