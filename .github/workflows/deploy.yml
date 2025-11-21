@@ -18,6 +18,9 @@ jobs:
         with:
           flutter-version: '3.24.0'   # твоя версия Flutter
 
+      - name: Clean previous build cache
+        run: flutter clean
+
       - name: Install dependencies
         run: flutter pub get
 
