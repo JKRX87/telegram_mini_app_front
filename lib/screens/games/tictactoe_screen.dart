@@ -18,15 +18,23 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
   Player? human;
   Player currentTurn = Player.x;
 
-  static const _kBoard = 'ttt_board';
-  static const _kFinished = 'ttt_finished';
-  static const _kHuman = 'ttt_human';
-  static const _kTurn = 'ttt_turn';
-
   @override
   void initState() {
     super.initState();
-    _restore();
+    _restore().then((_) async {
+      if (human == null) {
+        final selected = await _askRole();
+        if (selected != null) {
+          setState(() {
+            human = selected;
+            currentTurn = Player.x;
+          });
+          if (human == Player.o) {
+            _aiMove();
+          }
+        }
+      }
+    });
   }
 
   @override
@@ -42,62 +50,50 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
         body: Column(
           children: [
             Expanded(
-              child: Center(
-                child: AspectRatio(
-                  aspectRatio: 1,
-                  child: GridView.builder(
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      childAspectRatio: 1,
-                    ),
-                    itemCount: 9,
-                    itemBuilder: (context, i) {
-                      final symbol = board[i];
-                      final color = symbol == 'X'
-                          ? Colors.redAccent
-                          : symbol == 'O'
-                              ? Colors.lightBlueAccent
-                              : Colors.transparent;
+              child: AspectRatio(
+                aspectRatio: 1,
+                child: GridView.builder(
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    childAspectRatio: 1,
+                  ),
+                  itemCount: 9,
+                  itemBuilder: (context, i) {
+                    final symbol = board[i];
+                    final color = symbol == 'X'
+                        ? Colors.deepOrange
+                        : symbol == 'O'
+                            ? Colors.indigo
+                            : Colors.transparent;
 
-                      return Card(
-                        color: Colors.white.withOpacity(0.12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(
-                            color: Colors.white.withOpacity(0.25),
-                            width: 1,
-                          ),
-                        ),
-                        elevation: 0,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: () => _onCellTap(i),
-                          child: Center(
-                            child: Text(
-                              symbol,
-                              style: TextStyle(
-                                fontSize: 46,
-                                fontWeight: FontWeight.w800,
-                                color: color,
-                                shadows: [
-                                  Shadow(
-                                    blurRadius: 8,
-                                    color: Colors.black.withOpacity(0.35),
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
+                    return Card(
+                      color: Colors.white.withOpacity(0.1),
+                      child: InkWell(
+                        onTap: () => _onCellTap(i),
+                        child: Center(
+                          child: Text(
+                            symbol,
+                            style: TextStyle(
+                              fontSize: 48,
+                              fontWeight: FontWeight.bold,
+                              color: color,
+                              shadows: [
+                                Shadow(
+                                  blurRadius: 12,
+                                  color: color.withOpacity(0.7),
+                                  offset: const Offset(0, 0),
+                                ),
+                              ],
                             ),
                           ),
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
-            const SizedBox(height: 12),
             if (finished)
               FilledButton(
                 onPressed: _playAgain,
@@ -111,19 +107,6 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
   }
 
   Future<void> _onCellTap(int i) async {
-    if (human == null) {
-      final selected = await _askRole();
-      if (selected == null) return;
-      setState(() {
-        human = selected;
-        currentTurn = Player.x;
-      });
-      await _persist();
-      if (human == Player.o && !finished) {
-        await _aiMove();
-      }
-    }
-
     if (finished || board[i].isNotEmpty) return;
 
     if (_isHumanTurn()) {
@@ -131,7 +114,6 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
         board[i] = _symbolFor(currentTurn);
         _toggleTurn();
       });
-      await _persist();
       _checkEnd();
       if (!finished) {
         await _aiMove();
@@ -141,14 +123,21 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
 
   Future<void> _aiMove() async {
     if (finished) return;
-    await Future.delayed(const Duration(milliseconds: 250));
+    await Future.delayed(const Duration(milliseconds: 300));
+
     final ai = _aiPlayer();
-    final best = _bestMove(ai);
+    int move = _bestMove(ai);
+
+    // 15% шанс ошибиться
+    if ((DateTime.now().millisecond % 100) < 15) {
+      final empty = _emptyIndices();
+      if (empty.isNotEmpty) move = empty.first;
+    }
+
     setState(() {
-      board[best] = _symbolFor(ai);
+      board[move] = _symbolFor(ai);
       _toggleTurn();
     });
-    await _persist();
     _checkEnd();
   }
 
@@ -167,7 +156,6 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
       finished = true;
       _snack('Ничья');
     }
-    _persist();
   }
 
   Future<void> _playAgain() async {
@@ -175,20 +163,18 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
       board = List.filled(9, '');
       finished = false;
       currentTurn = Player.x;
-      human = null; // сбрасываем роль
+      human = null;
     });
-    await _persist();
 
     final selected = await _askRole();
-    if (selected == null) return;
-    setState(() {
-      human = selected;
-      currentTurn = Player.x;
-    });
-    await _persist();
-
-    if (human == Player.o) {
-      await _aiMove();
+    if (selected != null) {
+      setState(() {
+        human = selected;
+        currentTurn = Player.x;
+      });
+      if (human == Player.o) {
+        _aiMove();
+      }
     }
   }
 
@@ -223,10 +209,10 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
 
   Future<void> _restore() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedBoard = prefs.getStringList(_kBoard);
-    final savedFinished = prefs.getBool(_kFinished);
-    final savedHuman = prefs.getString(_kHuman);
-    final savedTurn = prefs.getString(_kTurn);
+    final savedBoard = prefs.getStringList('ttt_board');
+    final savedFinished = prefs.getBool('ttt_finished');
+    final savedHuman = prefs.getString('ttt_human');
+    final savedTurn = prefs.getString('ttt_turn');
 
     if (savedBoard != null &&
         savedFinished != null &&
@@ -238,28 +224,29 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
         human = savedHuman == 'x' ? Player.x : Player.o;
         currentTurn = savedTurn == 'x' ? Player.x : Player.o;
       });
-      if (!finished && !_isHumanTurn()) {
-        await _aiMove();
-      }
     }
-  }
-
-  Future<void> _persist() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(_kBoard, board);
-    await prefs.setBool(_kFinished, finished);
-    await prefs.setString(_kHuman, human == null ? 'none' : (human == Player.x ? 'x' : 'o'));
-    await prefs.setString(_kTurn, currentTurn == Player.x ? 'x' : 'o');
   }
 
   int _bestMove(Player ai) {
+    int bestScore = -1000;
+    int move = _emptyIndices().first;
     for (final i in _emptyIndices()) {
       board[i] = _symbolFor(ai);
-      final winner = _winnerSymbol(board);
+      final score = _evaluateBoard(ai);
       board[i] = '';
-      if (winner == _symbolFor(ai)) return i;
+      if (score > bestScore) {
+        bestScore = score;
+        move = i;
+      }
     }
-    return _emptyIndices().isNotEmpty ? _emptyIndices().first : 0;
+    return move;
+  }
+
+  int _evaluateBoard(Player ai) {
+    final winner = _winnerSymbol(board);
+    if (winner == _symbolFor(ai)) return 10;
+    if (winner != null) return -10;
+    return 0;
   }
 
   List<int> _emptyIndices() {
