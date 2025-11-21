@@ -17,6 +17,13 @@ class AppRoot extends StatefulWidget {
 
 class _AppRootState extends State<AppRoot> {
   int bottomIndex = 0;
+  int points = 0;
+
+  void addPoints() {
+    setState(() {
+      points += 50; // победа в любой игре = +50
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,12 +33,12 @@ class _AppRootState extends State<AppRoot> {
       home: Scaffold(
         body: IndexedStack(
           index: bottomIndex,
-          children: const [
-            HomeScreen(),
-            GamesScreen(),
-            LeaderboardScreen(),
-            FriendsScreen(),
-            TasksScreen(),
+          children: [
+            HomeScreen(points: points),
+            GamesScreen(onWin: addPoints),
+            LeaderboardScreen(points: points),
+            const FriendsScreen(),
+            const TasksScreen(),
           ],
         ),
         bottomNavigationBar: NavigationBar(
