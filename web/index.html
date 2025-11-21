@@ -15,6 +15,7 @@
     </style>
   </head>
   <body>
+    <!-- Telegram WebApp bootstrap -->
     <script>
       (function () {
         const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
@@ -36,14 +37,20 @@
       })();
     </script>
 
+    <!-- Flutter bootstrap -->
     <script src="flutter.js" defer></script>
     <script>
       window.addEventListener('load', function () {
-        if ('serviceWorker' in navigator) {
-          // navigator.serviceWorker.register('flutter_service_worker.js');
-        }
-        _flutter.loader.load({
-          entrypointUrl: 'main.dart.js',
+        _flutter.loader.loadEntrypoint({
+          serviceWorker: {
+            // можно включить регистрацию service worker, если нужно
+            // serviceWorkerVersion: serviceWorkerVersion,
+          },
+          onEntrypointLoaded: function(engineInitializer) {
+            engineInitializer.initializeEngine().then(function(appRunner) {
+              appRunner.runApp();
+            });
+          }
         });
       });
     </script>
