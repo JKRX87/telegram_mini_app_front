@@ -27,11 +27,9 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
       final savedFinished = prefs.getBool('ttt_finished') ?? true;
 
       if (savedBoard == null) {
-        // Нет сохранённой партии → сразу новая
         final selected = await _askRole();
         if (selected != null) _startNewGame(selected);
       } else if (!savedFinished) {
-        // Партия незавершённая → спросить продолжить
         final continueGame = await _askContinue();
         if (continueGame == true) {
           _restore();
@@ -40,7 +38,6 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
           if (selected != null) _startNewGame(selected);
         }
       } else {
-        // Партия завершена → новая игра
         final selected = await _askRole();
         if (selected != null) _startNewGame(selected);
       }
@@ -88,13 +85,15 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
                               fontSize: 56,
                               fontWeight: FontWeight.bold,
                               color: color,
-                              shadows: [
-                                Shadow(
-                                  blurRadius: 16,
-                                  color: color.withOpacity(0.8),
-                                  offset: const Offset(0, 0),
-                                ),
-                              ],
+                              shadows: symbol.isNotEmpty
+                                  ? [
+                                      Shadow(
+                                        blurRadius: 16,
+                                        color: color.withOpacity(0.8),
+                                        offset: const Offset(0, 0),
+                                      ),
+                                    ]
+                                  : [],
                             ),
                           ),
                         ),
@@ -135,7 +134,7 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
     final ai = _aiPlayer();
     int move;
 
-    // 20% шанс ошибиться
+    // 20% шанс ошибки
     if ((DateTime.now().millisecond % 100) < 20) {
       final empty = _emptyIndices();
       move = empty.isNotEmpty ? empty.first : 0;
@@ -181,32 +180,25 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
       currentTurn = Player.x;
     });
     _persist();
-    if (human == Player.o) _aiMove();
   }
 
-  bool _isHumanTurn() => human != null && human == currentTurn;
-  void _toggleTurn() {
-    currentTurn = currentTurn == Player.x ? Player.o : Player.x;
-  }
-
-  String _symbolFor(Player p) => p == Player.x ? 'X' : 'O';
-  Player _aiPlayer() => human == Player.x ? Player.o : Player.x;
+  // ---------- Диалоги ----------
 
   Future<Player?> _askRole() async {
     return showDialog<Player>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Выбери, за кого играть'),
-        content: const Text('Кто ты хочешь быть в этой партии?'),
+      builder: (ctx) => AlertDialog(
+        title: const Text('Выбери роль'),
+        content: const Text('Кем будешь играть: X или O?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(Player.x),
-            child: const Text('За крестики (X)'),
+            onPressed: () => Navigator.pop(ctx, Player.x),
+            child: const Text('X'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(Player.o),
-            child: const Text('За нолики (O)'),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, Player.o),
+            child: const Text('O'),
           ),
         ],
       ),
@@ -217,50 +209,206 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
     return showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Продолжить игру?'),
-        content: const Text('У вас есть незавершённая партия. Хотите продолжить её?'),
+      builder: (ctx) => AlertDialog(
+        title: const Text('Незавершённая партия'),
+        content: const Text('Продолжить или начать заново?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Начать заново'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
+            onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Продолжить'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Начать заново'),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _restore() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedBoard = prefs.getStringList('ttt_board');
-    final savedFinished = prefs.getBool('ttt_finished');
-    final savedHuman = prefs.getString('ttt_human');
-    final savedTurn = prefs.getString('ttt_turn');
+  // ---------- Сохранение/восстановление ----------
 
-    if (savedBoard != null &&
-        savedFinished != null &&
-        savedHuman != null &&
-        savedTurn != null) {
-      setState(() {
-        board = savedBoard;
-        finished = savedFinished;
-        human = savedHuman == 'x' ? Player.x : Player.o;
-        currentTurn = savedTurn == 'x' ? Player.x : Player.o;
-      });
-    }
+  void _restore() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      board = prefs.getStringList('ttt_board') ?? List.filled(9, '');
+      finished = prefs.getBool('ttt_finished') ?? false;
+      final humanStr = prefs.getString('ttt_human');
+      if (humanStr != null) {
+        human = humanStr == 'X' ? Player.x : Player.o;
+      }
+      final turnStr = prefs.getString('ttt_turn');
+      if (turnStr != null) {
+        currentTurn = turnStr == 'X' ? Player.x : Player.o;
+      }
+    });
   }
 
-  Future<void> _persist() async {
+  void _persist() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('ttt_board', board);
     await prefs.setBool('ttt_finished', finished);
-    await prefs.setString('ttt_human', human == null ? 'none' : (human == Player.x ? 'x' : 'o'));
-    await prefs.setString('ttt_turn', currentTurn == Player.x ? 'x' : 'o');
+    if (human != null) {
+      await prefs.setString('ttt_human', _symbolFor(human!));
+    } else {
+      await prefs.remove('ttt_human');
+    }
+    await prefs.setString('ttt_turn', _symbolFor(currentTurn));
   }
 
+  // ---------- Утилиты ----------
+
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg)),
+    );
+  }
+
+  bool _isHumanTurn() => human != null && currentTurn == human;
+
+  void _toggleTurn() {
+    currentTurn = currentTurn == Player.x ? Player.o : Player.x;
+  }
+
+  String _symbolFor(Player p) => p == Player.x ? 'X' : 'O';
+
+  Player _aiPlayer() => human == Player.x ? Player.o : Player.x;
+
+  List<int> _emptyIndices([List<String>? b]) {
+    final brd = b ?? board;
+    final res = <int>[];
+    for (int i = 0; i < 9; i++) {
+      if (brd[i].isEmpty) res.add(i);
+    }
+    return res;
+  }
+
+  String? _winnerSymbol(List<String> b) {
+    const wins = [
+      [0, 1, 2],
+      [3, 4, 5],
+      [6, 7, 8],
+      [0, 3, 6],
+      [1, 4, 7],
+      [2, 5, 8],
+      [0, 4, 8],
+      [2, 4, 6],
+    ];
+    for (var combo in wins) {
+      final a = b[combo[0]];
+      if (a.isNotEmpty &&
+          a == b[combo[1]] &&
+          a == b[combo[2]]) {
+        return a;
+      }
+    }
+    return null;
+  }
+
+  bool _isTerminal(List<String> b) {
+    return _winnerSymbol(b) != null || !b.contains('');
+  }
+
+  int _score(List<String> b, Player ai, int depthLeft) {
+    final w = _winnerSymbol(b);
+    if (w == null) return 0;
+    final aiSym = _symbolFor(ai);
+    // Чем ближе победа — тем выше оценка; поражение — ниже.
+    // Лёгкая глубинная корректировка, чтобы ИИ предпочитал быстрые победы.
+    final base = w == aiSym ? 10 : -10;
+    return base + depthLeft; // победа раньше = чуть больше, поражение позже = чуть меньше по модулю
+  }
+
+  // ---------- Minimax (ограничение глубины = 3) ----------
+
   int _bestMove(Player ai, {int depth = 3}) {
-    int bestScore = -1000;
+    final aiSym = _symbolFor(ai);
+    int bestScore = -10000;
+    int bestIdx = _emptyIndices().isNotEmpty ? _emptyIndices().first : 0;
+
+    for (final i in _emptyIndices()) {
+      final sim = List<String>.from(board);
+      sim[i] = aiSym;
+      final score = _minimax(sim, depth - 1, false, ai);
+      if (score > bestScore) {
+        bestScore = score;
+        bestIdx = i;
+      }
+    }
+    return bestIdx;
+  }
+
+  int _minimax(List<String> b, int depthLeft, bool isMax, Player ai) {
+    if (_isTerminal(b) || depthLeft == 0) {
+      if (_isTerminal(b)) {
+        return _score(b, ai, depthLeft);
+      }
+      // Если предельная глубина — используем эвристику.
+      return _heuristic(b, ai);
+    }
+
+    final aiSym = _symbolFor(ai);
+    final humanSym = _symbolFor(human ?? Player.x);
+
+    if (isMax) {
+      int best = -10000;
+      for (final i in _emptyIndices(b)) {
+        final sim = List<String>.from(b);
+        sim[i] = aiSym;
+        final score = _minimax(sim, depthLeft - 1, false, ai);
+        if (score > best) best = score;
+      }
+      return best;
+    } else {
+      int best = 10000;
+      for (final i in _emptyIndices(b)) {
+        final sim = List<String>.from(b);
+        sim[i] = humanSym;
+        final score = _minimax(sim, depthLeft - 1, true, ai);
+        if (score < best) best = score;
+      }
+      return best;
+    }
+  }
+
+  int _heuristic(List<String> b, Player ai) {
+    // Простая позиционная оценка: линии, где ИИ ближе к победе — плюс,
+    // где человек ближе — минус.
+    const wins = [
+      [0, 1, 2],
+      [3, 4, 5],
+      [6, 7, 8],
+      [0, 3, 6],
+      [1, 4, 7],
+      [2, 5, 8],
+      [0, 4, 8],
+      [2, 4, 6],
+    ];
+    final aiSym = _symbolFor(ai);
+    final humanSym = _symbolFor(human ?? Player.x);
+    int score = 0;
+
+    for (final line in wins) {
+      final cells = [b[line[0]], b[line[1]], b[line[2]]];
+      final aiCount = cells.where((c) => c == aiSym).length;
+      final humanCount = cells.where((c) => c == humanSym).length;
+      final emptyCount = cells.where((c) => c.isEmpty).length;
+
+      if (humanCount == 0) {
+        // Линия только ИИ/пустые — хорошо
+        if (aiCount == 2 && emptyCount == 1) score += 3; // угроза победы
+        else if (aiCount == 1 && emptyCount == 2) score += 1;
+      }
+      if (aiCount == 0) {
+        // Линия только человека/пустые — плохо
+        if (humanCount == 2 && emptyCount == 1) score -= 3; // угрозу надо блокировать
+        else if (humanCount == 1 && emptyCount == 2) score -= 1;
+      }
+    }
+    // Центр чуть ценнее
+    if (b[4] == aiSym) score += 1;
+    if (b[4] == humanSym) score -= 1;
+
+    return score;
+  }
+}
