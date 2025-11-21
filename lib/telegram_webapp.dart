@@ -16,6 +16,15 @@ class TelegramWebApp {
   static void close() { try { js_util.callMethod(_tg, 'close', const []); } catch (_) {} }
   static void sendData(String data) { try { js_util.callMethod(_tg, 'sendData', [data]); } catch (_) {} }
 
+  // ✅ Добавленный метод
+  static void openLink(String url) {
+    try {
+      js_util.callMethod(_tg, 'openLink', [url]);
+    } catch (_) {
+      html.window.open(url, '_blank');
+    }
+  }
+
   // MainButton
   static dynamic get _mainButton => js_util.getProperty(_tg, 'MainButton');
   static void mainButtonSetText(String text) { try { js_util.callMethod(_mainButton, 'setText', [text]); } catch (_) {} }
