@@ -5,7 +5,8 @@ import 'games/tictactoe_screen.dart';
 import 'games/shellgame_screen.dart';
 
 class GamesScreen extends StatelessWidget {
-  const GamesScreen({super.key});
+  final VoidCallback onWin;
+  const GamesScreen({super.key, required this.onWin});
 
   @override
   Widget build(BuildContext context) {
@@ -16,29 +17,29 @@ class GamesScreen extends StatelessWidget {
           children: [
             _GameCard(
               title: 'Blackjack',
-              description: 'Играй против ИИ',
+              description: 'Победа: +50 очков',
               icon: Icons.casino,
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const BlackjackScreen()),
+                MaterialPageRoute(builder: (_) => BlackjackScreen(onWin: onWin)),
               ),
             ),
             _GameCard(
               title: 'Крестики‑нолики',
-              description: 'Против ИИ',
+              description: 'Победа: +50 очков',
               icon: Icons.grid_3x3,
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const TicTacToeScreen()),
+                MaterialPageRoute(builder: (_) => TicTacToeScreen(onWin: onWin)),
               ),
             ),
             _GameCard(
               title: 'Напёрстки',
-              description: 'Найди шарик',
+              description: 'Победа: +50 очков',
               icon: Icons.sports_martial_arts,
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const ShellGameScreen()),
+                MaterialPageRoute(builder: (_) => ShellGameScreen(onWin: onWin)),
               ),
             ),
           ],
@@ -73,4 +74,3 @@ class _GameCard extends StatelessWidget {
     );
   }
 }
-
