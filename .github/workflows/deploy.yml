@@ -1,9 +1,9 @@
-name: Deploy to Vercel
+name: Build and Deploy Flutter Web to Vercel
 
 on:
   push:
     branches:
-      - main
+      - main   # или твоя основная ветка
 
 jobs:
   build:
@@ -16,7 +16,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0' # актуальная стабильная версия Flutter
+          flutter-version: '3.24.0'   # твоя версия Flutter
 
       - name: Install dependencies
         run: flutter pub get
@@ -24,15 +24,7 @@ jobs:
       - name: Build Flutter Web
         run: flutter build web --release
 
-      - name: Install Vercel CLI
-        run: npm install -g vercel
-
-      - name: Pull Vercel Project Settings
-        run: vercel pull --yes --environment=production --token=$VERCEL_TOKEN
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-
       - name: Deploy to Vercel
-        run: vercel deploy --prod --yes --token=$VERCEL_TOKEN --confirm --cwd build/web
+        run: npx vercel deploy --prod --yes --token=$VERCEL_TOKEN --cwd build/web
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
