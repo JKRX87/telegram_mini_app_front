@@ -23,11 +23,11 @@ class GameBackground extends StatelessWidget {
   String _backgroundForGame(GameType game) {
     switch (game) {
       case GameType.blackjack:
-        return 'assets/images/blackjack.jpeg';
+        return 'assets/images/bg_blackjack.jpeg';
       case GameType.tictactoe:
-        return 'assets/images/tictactoe.jpeg';
+        return 'assets/images/bg_tictactoe.jpeg';
       case GameType.shell:
-        return 'assets/images/shell.jpeg';
+        return 'assets/images/bg_shell.jpeg';
     }
   }
 }
