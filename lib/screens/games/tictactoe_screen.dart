@@ -32,7 +32,7 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
       } else if (!savedFinished) {
         final continueGame = await _askContinue();
         if (continueGame == true) {
-          _restore();
+          await _restore();
         } else {
           final selected = await _askRole();
           if (selected != null) _startNewGame(selected);
@@ -68,11 +68,22 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
                   itemCount: 9,
                   itemBuilder: (context, i) {
                     final symbol = board[i];
-                    final color = symbol == 'X'
-                        ? Colors.red.shade900
-                        : symbol == 'O'
-                            ? Colors.blue.shade900
-                            : Colors.transparent;
+                    Color color = Colors.transparent;
+                    List<Shadow> shadows = [];
+
+                    if (symbol == 'X') {
+                      color = Colors.red.shade900;
+                      shadows = const [
+                        Shadow(blurRadius: 4, color: Colors.black, offset: Offset(1, 1)),
+                        Shadow(blurRadius: 8, color: Colors.black54, offset: Offset(0, 0)),
+                      ];
+                    } else if (symbol == 'O') {
+                      color = Colors.black;
+                      shadows = const [
+                        Shadow(blurRadius: 4, color: Colors.white, offset: Offset(1, 1)),
+                        Shadow(blurRadius: 8, color: Colors.white70, offset: Offset(0, 0)),
+                      ];
+                    }
 
                     return Card(
                       color: Colors.white.withOpacity(0.1),
@@ -85,15 +96,7 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
                               fontSize: 56,
                               fontWeight: FontWeight.bold,
                               color: color,
-                              shadows: symbol.isNotEmpty
-                                  ? [
-                                      Shadow(
-                                        blurRadius: 16,
-                                        color: color.withOpacity(0.8),
-                                        offset: const Offset(0, 0),
-                                      ),
-                                    ]
-                                  : [],
+                              shadows: shadows,
                             ),
                           ),
                         ),
@@ -129,12 +132,12 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
 
   Future<void> _aiMove() async {
     if (finished) return;
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 250));
 
     final ai = _aiPlayer();
     int move;
 
-    // 20% шанс ошибки
+    // 20% шанс «ошибки» для естественности
     if ((DateTime.now().millisecond % 100) < 20) {
       final empty = _emptyIndices();
       move = empty.isNotEmpty ? empty.first : 0;
@@ -180,25 +183,35 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
       currentTurn = Player.x;
     });
     _persist();
+    // Если игрок выбрал нолики, ИИ начинает первым за крестики
+    if (human == Player.o) {
+      _aiMove();
+    }
   }
 
-  // ---------- Диалоги ----------
+  bool _isHumanTurn() => human != null && human == currentTurn;
 
+  void _toggleTurn() {
+    currentTurn = currentTurn == Player.x ? Player.o : Player.x;
+  }
+
+  String _symbolFor(Player p) => p == Player.x ? 'X' : 'O';
+  Player _aiPlayer() => human == Player.x ? Player.o : Player.x;
   Future<Player?> _askRole() async {
     return showDialog<Player>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Выбери роль'),
-        content: const Text('Кем будешь играть: X или O?'),
+      builder: (context) => AlertDialog(
+        title: const Text('Выбери, за кого играть'),
+        content: const Text('Кто ты хочешь быть в этой партии?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, Player.x),
-            child: const Text('X'),
+            onPressed: () => Navigator.of(context).pop(Player.x),
+            child: const Text('За крестики (X)'),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, Player.o),
-            child: const Text('O'),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(Player.o),
+            child: const Text('За нолики (O)'),
           ),
         ],
       ),
@@ -209,76 +222,130 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
     return showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Незавершённая партия'),
-        content: const Text('Продолжить или начать заново?'),
+      builder: (context) => AlertDialog(
+        title: const Text('Продолжить игру?'),
+        content: const Text('У вас есть незавершённая партия. Хотите продолжить её?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Продолжить'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.of(context).pop(false),
             child: const Text('Начать заново'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Продолжить'),
           ),
         ],
       ),
     );
   }
 
-  // ---------- Сохранение/восстановление ----------
-
-  void _restore() async {
+  Future<void> _restore() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      board = prefs.getStringList('ttt_board') ?? List.filled(9, '');
-      finished = prefs.getBool('ttt_finished') ?? false;
-      final humanStr = prefs.getString('ttt_human');
-      if (humanStr != null) {
-        human = humanStr == 'X' ? Player.x : Player.o;
-      }
-      final turnStr = prefs.getString('ttt_turn');
-      if (turnStr != null) {
-        currentTurn = turnStr == 'X' ? Player.x : Player.o;
-      }
-    });
+    final savedBoard = prefs.getStringList('ttt_board');
+    final savedFinished = prefs.getBool('ttt_finished');
+    final savedHuman = prefs.getString('ttt_human');
+    final savedTurn = prefs.getString('ttt_turn');
+
+    if (savedBoard != null &&
+        savedFinished != null &&
+        savedHuman != null &&
+        savedTurn != null) {
+      setState(() {
+        board = savedBoard;
+        finished = savedFinished;
+        human = savedHuman == 'x'
+            ? Player.x
+            : (savedHuman == 'o' ? Player.o : null);
+        currentTurn = savedTurn == 'x' ? Player.x : Player.o;
+      });
+    }
   }
 
-  void _persist() async {
+  Future<void> _persist() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('ttt_board', board);
     await prefs.setBool('ttt_finished', finished);
-    if (human != null) {
-      await prefs.setString('ttt_human', _symbolFor(human!));
-    } else {
-      await prefs.remove('ttt_human');
+    await prefs.setString('ttt_human', human == null ? 'none' : (human == Player.x ? 'x' : 'o'));
+    await prefs.setString('ttt_turn', currentTurn == Player.x ? 'x' : 'o');
+  }
+
+  // Минимакс с ограничением глубины и простой эвристикой
+  int _bestMove(Player ai, {int depth = 3}) {
+    int bestScore = -100000;
+    int bestMove = _emptyIndices().isNotEmpty ? _emptyIndices().first : 0;
+    final aiSymbol = _symbolFor(ai);
+    final huSymbol = _symbolFor(human ?? Player.x);
+
+    for (final i in _emptyIndices()) {
+      board[i] = aiSymbol;
+      final score = _minimax(depth - 1, false, aiSymbol, huSymbol);
+      board[i] = '';
+      if (score > bestScore) {
+        bestScore = score;
+        bestMove = i;
+      }
     }
-    await prefs.setString('ttt_turn', _symbolFor(currentTurn));
+    return bestMove;
   }
 
-  // ---------- Утилиты ----------
+  int _minimax(int depth, bool isMax, String aiSymbol, String huSymbol) {
+    final winner = _winnerSymbol(board);
+    if (winner == aiSymbol) return 100 + depth; // быстрее выиграть — лучше
+    if (winner == huSymbol) return -100 - depth; // избегать поражения
+    if (depth == 0 || !_boardHasEmpty(board)) {
+      return _heuristic(aiSymbol, huSymbol);
+    }
 
-  void _snack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
-    );
+    if (isMax) {
+      int best = -100000;
+      for (final i in _emptyIndices()) {
+        board[i] = aiSymbol;
+        final score = _minimax(depth - 1, false, aiSymbol, huSymbol);
+        board[i] = '';
+        if (score > best) best = score;
+      }
+      return best;
+    } else {
+      int best = 100000;
+      for (final i in _emptyIndices()) {
+        board[i] = huSymbol;
+        final score = _minimax(depth - 1, true, aiSymbol, huSymbol);
+        board[i] = '';
+        if (score < best) best = score;
+      }
+      return best;
+    }
   }
 
-  bool _isHumanTurn() => human != null && currentTurn == human;
+  bool _boardHasEmpty(List<String> b) => b.contains('');
 
-  void _toggleTurn() {
-    currentTurn = currentTurn == Player.x ? Player.o : Player.x;
+  int _heuristic(String ai, String hu) {
+    // Простая оценка: количество почти-собранных линий
+    const wins = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8],
+      [0, 3, 6], [1, 4, 7], [2, 5, 8],
+      [0, 4, 8], [2, 4, 6],
+    ];
+    int score = 0;
+    for (final w in wins) {
+      final a = board[w[0]], b = board[w[1]], c = board[w[2]];
+      final line = [a, b, c];
+      final aiCount = line.where((s) => s == ai).length;
+      final huCount = line.where((s) => s == hu).length;
+      final emptyCount = line.where((s) => s.isEmpty).length;
+
+      if (aiCount == 2 && emptyCount == 1) score += 10;  // шанс победы
+      if (huCount == 2 && emptyCount == 1) score -= 12;  // срочная блокировка
+      if (aiCount == 1 && emptyCount == 2) score += 2;
+      if (huCount == 1 && emptyCount == 2) score -= 3;
+    }
+    return score;
   }
 
-  String _symbolFor(Player p) => p == Player.x ? 'X' : 'O';
-
-  Player _aiPlayer() => human == Player.x ? Player.o : Player.x;
-
-  List<int> _emptyIndices([List<String>? b]) {
-    final brd = b ?? board;
+  List<int> _emptyIndices() {
     final res = <int>[];
-    for (int i = 0; i < 9; i++) {
-      if (brd[i].isEmpty) res.add(i);
+    for (var i = 0; i < board.length; i++) {
+      if (board[i].isEmpty) res.add(i);
     }
     return res;
   }
@@ -294,121 +361,14 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
       [0, 4, 8],
       [2, 4, 6],
     ];
-    for (var combo in wins) {
-      final a = b[combo[0]];
-      if (a.isNotEmpty &&
-          a == b[combo[1]] &&
-          a == b[combo[2]]) {
-        return a;
-      }
+    for (final w in wins) {
+      final a = b[w[0]], c = b[w[1]], d = b[w[2]];
+      if (a.isNotEmpty && a == c && c == d) return a;
     }
     return null;
   }
 
-  bool _isTerminal(List<String> b) {
-    return _winnerSymbol(b) != null || !b.contains('');
-  }
-
-  int _score(List<String> b, Player ai, int depthLeft) {
-    final w = _winnerSymbol(b);
-    if (w == null) return 0;
-    final aiSym = _symbolFor(ai);
-    // Чем ближе победа — тем выше оценка; поражение — ниже.
-    // Лёгкая глубинная корректировка, чтобы ИИ предпочитал быстрые победы.
-    final base = w == aiSym ? 10 : -10;
-    return base + depthLeft; // победа раньше = чуть больше, поражение позже = чуть меньше по модулю
-  }
-
-  // ---------- Minimax (ограничение глубины = 3) ----------
-
-  int _bestMove(Player ai, {int depth = 3}) {
-    final aiSym = _symbolFor(ai);
-    int bestScore = -10000;
-    int bestIdx = _emptyIndices().isNotEmpty ? _emptyIndices().first : 0;
-
-    for (final i in _emptyIndices()) {
-      final sim = List<String>.from(board);
-      sim[i] = aiSym;
-      final score = _minimax(sim, depth - 1, false, ai);
-      if (score > bestScore) {
-        bestScore = score;
-        bestIdx = i;
-      }
-    }
-    return bestIdx;
-  }
-
-  int _minimax(List<String> b, int depthLeft, bool isMax, Player ai) {
-    if (_isTerminal(b) || depthLeft == 0) {
-      if (_isTerminal(b)) {
-        return _score(b, ai, depthLeft);
-      }
-      // Если предельная глубина — используем эвристику.
-      return _heuristic(b, ai);
-    }
-
-    final aiSym = _symbolFor(ai);
-    final humanSym = _symbolFor(human ?? Player.x);
-
-    if (isMax) {
-      int best = -10000;
-      for (final i in _emptyIndices(b)) {
-        final sim = List<String>.from(b);
-        sim[i] = aiSym;
-        final score = _minimax(sim, depthLeft - 1, false, ai);
-        if (score > best) best = score;
-      }
-      return best;
-    } else {
-      int best = 10000;
-      for (final i in _emptyIndices(b)) {
-        final sim = List<String>.from(b);
-        sim[i] = humanSym;
-        final score = _minimax(sim, depthLeft - 1, true, ai);
-        if (score < best) best = score;
-      }
-      return best;
-    }
-  }
-
-  int _heuristic(List<String> b, Player ai) {
-    // Простая позиционная оценка: линии, где ИИ ближе к победе — плюс,
-    // где человек ближе — минус.
-    const wins = [
-      [0, 1, 2],
-      [3, 4, 5],
-      [6, 7, 8],
-      [0, 3, 6],
-      [1, 4, 7],
-      [2, 5, 8],
-      [0, 4, 8],
-      [2, 4, 6],
-    ];
-    final aiSym = _symbolFor(ai);
-    final humanSym = _symbolFor(human ?? Player.x);
-    int score = 0;
-
-    for (final line in wins) {
-      final cells = [b[line[0]], b[line[1]], b[line[2]]];
-      final aiCount = cells.where((c) => c == aiSym).length;
-      final humanCount = cells.where((c) => c == humanSym).length;
-      final emptyCount = cells.where((c) => c.isEmpty).length;
-
-      if (humanCount == 0) {
-        // Линия только ИИ/пустые — хорошо
-        if (aiCount == 2 && emptyCount == 1) score += 3; // угроза победы
-        else if (aiCount == 1 && emptyCount == 2) score += 1;
-      }
-      if (aiCount == 0) {
-        // Линия только человека/пустые — плохо
-        if (humanCount == 2 && emptyCount == 1) score -= 3; // угрозу надо блокировать
-        else if (humanCount == 1 && emptyCount == 2) score -= 1;
-      }
-    }
-    // Центр чуть ценнее
-    if (b[4] == aiSym) score += 1;
-    if (b[4] == humanSym) score -= 1;
-
-    return score;
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 }
