@@ -24,14 +24,16 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
           title: const Text('Крестики‑нолики'),
           backgroundColor: Colors.black26,
         ),
-        body: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Expanded(
+        body: Column(
+          children: [
+            Expanded(
+              child: AspectRatio(
+                aspectRatio: 1, // квадратная сетка
                 child: GridView.builder(
+                  physics: const NeverScrollableScrollPhysics(), // убираем скролл
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
+                    childAspectRatio: 1, // клетки квадратные
                   ),
                   itemCount: 9,
                   itemBuilder: (context, i) {
@@ -52,9 +54,14 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
                   },
                 ),
               ),
-              FilledButton(onPressed: _reset, child: const Text('Сброс')),
-            ],
-          ),
+            ),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: _reset,
+              child: const Text('Сброс'),
+            ),
+            const SizedBox(height: 16),
+          ],
         ),
       ),
     );
