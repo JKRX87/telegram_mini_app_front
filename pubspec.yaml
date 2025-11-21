@@ -1,25 +1,27 @@
-name: telegram_mini_app
-description: A Flutter Web Telegram Mini App frontend
-publish_to: "none"
+name: telegram_mini_app_front
+description: A Flutter web app integrated with Telegram Mini Apps
+publish_to: 'none'
 
 version: 1.0.0+1
 
 environment:
-  sdk: ">=3.3.0 <4.0.0"
+  sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  # Для безопасной работы с JS-объектами
-  js: ^0.6.7
+  cupertino_icons: ^1.0.6
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: ^3.0.0
 
 flutter:
   uses-material-design: true
+
   assets:
     - assets/images/main_bg.jpeg
-
+    - assets/images/blackjack.jpeg
+    - assets/images/tictactoe.jpeg
+    - assets/images/shell.jpeg
